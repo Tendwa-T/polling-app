@@ -6,6 +6,9 @@ const darkTheme = createTheme({
   palette: {
     mode: "dark",
   },
+  typography: {
+    fontFamily: "var(--font-roboto)",
+  },
 });
 
 const lightTheme = createTheme({
