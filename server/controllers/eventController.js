@@ -1,3 +1,4 @@
+const { redisPub } = require("../config/redis");
 const Event = require("../models/eventModel");
 const { v4: uuidv4 } = require("uuid");
 
@@ -21,7 +22,6 @@ async function joinEvent(req, res) {
     if (!userID) userID = uuidv4();
 
     const participant = event.participants.find((p) => p.userName === userName);
-    console.log("Participant", participant);
     //prevent duplicate usernames
     if (participant) {
       return res.status(400).json({
@@ -37,6 +37,7 @@ async function joinEvent(req, res) {
     return res.status(200).json({
       data: {
         event: {
+          eventID: event._id,
           eventCode: event.eventCode,
           eventName: event.name,
           eventDescription: event.description,
@@ -60,16 +61,32 @@ async function joinEvent(req, res) {
   }
 }
 async function setActiveQuestion(req, res) {
-  const { eventID, questionID } = req.body;
+  const { eventID, questionID, isLastQuestion } = req.body;
 
   try {
-    const event = await Event.findById(eventID);
+    const event = await Event.findByIdAndUpdate(
+      eventID,
+      {
+        activeQuestion: questionID,
+        isLastQuestion,
+      },
+      { new: true }
+    );
     if (!event)
       return res
         .status(404)
         .json({ data: null, message: "Event not found", success: false });
-    event.activeQuestion = questionID;
-    await event.save();
+
+    const resEvent = await Event.findById(eventID).populate("activeQuestion");
+
+    redisPub.publish(
+      "live-events",
+      JSON.stringify({
+        eventCode: event.eventCode,
+        activeQuestion: resEvent.activeQuestion,
+        isLastQuestion: resEvent.isLastQuestion,
+      })
+    );
 
     return res
       .status(200)
@@ -92,7 +109,12 @@ async function getActiveQuestion(req, res) {
 
   async function sendQuestionUpdate() {
     const event = await Event.findById(eventID).populate("activeQuestion");
-    res.write(`data: ${JSON.stringify(event.activeQuestion)}\n\n`);
+    res.write(
+      `data: ${JSON.stringify({
+        activeQuestion: event.activeQuestion,
+        isLastQuestion: event.isLastQuestion,
+      })}\n\n`
+    );
   }
   sendQuestionUpdate();
 
@@ -102,9 +124,35 @@ async function getActiveQuestion(req, res) {
   });
 }
 
+async function resetActiveQuestion(req, res) {
+  const { eventID } = req.params;
+
+  try {
+    const event = await Event.findById(eventID);
+    if (!event)
+      return res
+        .status(404)
+        .json({ data: null, message: "Event not found", success: false });
+    event.activeQuestion = null;
+    event.isLastQuestion = false;
+    await event.save();
+
+    return res
+      .status(200)
+      .json({ data: null, message: "Active question reset", success: true });
+  } catch (err) {
+    console.log(`Reset Active Question Error: ${err.message}`);
+    return res.status(500).json({
+      data: null,
+      message: `An Error Occurred: ${err.message}`,
+      success: false,
+    });
+  }
+}
+
 async function createEvent(req, res) {
   try {
-    const { name, description } = req.body;
+    const { name, description, adminID } = req.body;
     const eventCode = Math.random().toString(36).substring(2, 8).toUpperCase();
     const endDate = new Date();
     endDate.setDate(endDate.getDate() + 1);
@@ -112,6 +160,7 @@ async function createEvent(req, res) {
     const newEvent = await Event.create({
       name,
       eventCode,
+      adminID,
       description,
       endTime: endDate,
     });
@@ -136,9 +185,66 @@ async function createEvent(req, res) {
   }
 }
 
+async function startEvent(req, res) {
+  try {
+    const { eventID } = req.params;
+    const event = await Event.findByIdAndUpdate(
+      eventID,
+      { status: "live" },
+      { new: true }
+    );
+    if (!event) {
+      return res
+        .status(404)
+        .json({ data: null, message: "Event not found", success: false });
+    }
+    return res.status(200).json({
+      data: null,
+      message: "Event Started",
+      success: true,
+    });
+  } catch (err) {}
+}
+
+async function endEvent(req, res) {
+  try {
+    const { eventID } = req.params;
+    const event = await Event.findByIdAndUpdate(eventID, {
+      status: "completed",
+    });
+    if (!event) {
+      return res
+        .status(404)
+        .json({ data: null, message: "Event not found", success: false });
+    }
+    redisPub.publish(
+      "live-events",
+      JSON.stringify({
+        eventCode: event.eventCode,
+        eventEnded: true,
+      })
+    );
+    return res.status(200).json({
+      data: null,
+      message: "Event Ended",
+      success: true,
+    });
+  } catch (err) {
+    console.log("End Event Error:", err.message);
+    return res.status(500).json({
+      data: null,
+      message: `An error occurred: ${err.message}`,
+      success: false,
+    });
+  }
+}
+
 module.exports = {
   joinEvent,
   setActiveQuestion,
   getActiveQuestion,
   createEvent,
+  resetActiveQuestion,
+  startEvent,
+  endEvent,
 };

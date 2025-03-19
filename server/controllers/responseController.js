@@ -70,7 +70,7 @@ async function submitResposne(req, res) {
 
     return res
       .status(201)
-      .json({ data: newResponse, message: "Response Saved", success: true });
+      .json({ data: null, message: "Response Saved", success: true });
   } catch (err) {
     console.log(`Create Response Error: ${err.message}`);
     return res.status(500).json({

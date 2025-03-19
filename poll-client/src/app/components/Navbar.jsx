@@ -12,10 +12,11 @@ export default function NavbarComponent() {
                         color="inherit"
                         aria-label="menu"
                         sx={{ mr: 2 }}
+                        href="/"
                     >
                         <Menu />
                     </IconButton>
-                    <Typography variant="h6" component="div" sx={{ flexGrow: 1 }} textAlign={'center'} >
+                    <Typography variant="h6" component="div" sx={{ flexGrow: 1 }} textAlign={'center'} href="/">
                         Tildo
                     </Typography>
                     <Button color="inherit">Login</Button>

@@ -30,9 +30,7 @@ export default function EnterDetailsComponent() {
                 })
             })
             const event = await res.json()
-            console.log(event)
-            localStorage.setItem("event", JSON.stringify(event.event))
-            localStorage.setItem("userName", data.userName)
+            console.log("Event: ", event)
             setSnackConfig({
                 open: true,
                 message: event.message,
@@ -42,8 +40,12 @@ export default function EnterDetailsComponent() {
                 setIsLoading(false)
                 return
             }
+            console.log("EventData: ", event.data.event)
+            localStorage.setItem("event", JSON.stringify(event.data.event))
+            localStorage.setItem("userID", JSON.stringify(event.data.userID))
+            localStorage.setItem("userName", data.userName)
             setTimeout(() => {
-                router.push("/event")
+                router.push("/event/" + data.eventCode)
             }, 1000)
         } catch (error) {
             console.log(error.message)
