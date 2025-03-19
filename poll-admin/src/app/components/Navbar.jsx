@@ -8,7 +8,7 @@ import AutoGraphIcon from '@mui/icons-material/AutoGraph';
 import TrendingUpIcon from '@mui/icons-material/TrendingUp';
 import SettingsIcon from '@mui/icons-material/Settings';
 
-export default function NavbarComponent({ children }) {
+export default function NavbarComponent({ children, itemTitle }) {
 
 
     const drawerWidth = 240;
@@ -49,7 +49,7 @@ export default function NavbarComponent({ children }) {
             <List sx={{ width: '100%' }} component={"nav"} >
                 {navItems.map((item) => (
                     <ListItemButton key={item.key}>
-                        <ListItemIcon>
+                        <ListItemIcon >
                             {item.icon}
                         </ListItemIcon>
                         <ListItemText primary={item.title} />
@@ -84,7 +84,7 @@ export default function NavbarComponent({ children }) {
                     <Box>
                         <List sx={{ display: 'flex' }} component={"nav"} >
                             {navItems.map((item) => (
-                                <ListItemButton key={item.key}>
+                                <ListItemButton key={item.key} sx={{ display: 'flex', ml: 2, borderRadius: '2em', bgcolor: itemTitle === item.title && 'green', ":hover": { bgcolor: 'green' }, transition: 'all 0.3s ease-in-out', }}>
                                     <ListItemIcon>
                                         {item.icon}
                                     </ListItemIcon>
