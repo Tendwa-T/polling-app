@@ -1,10 +1,14 @@
 "use client"
 
+import { useUser } from "@/context/user/useUser"
 import { Visibility, VisibilityOff } from "@mui/icons-material"
-import { Box, Button, IconButton, Link, Paper, TextField, Typography } from "@mui/material"
+import { Alert, Box, Button, IconButton, Link, Paper, Snackbar, TextField, Typography } from "@mui/material"
+import { useRouter } from "next/navigation"
 import { useState } from "react"
 
 export default function SignInComponent() {
+    const router = useRouter()
+    const { user, userLogin } = useUser()
     const [errBod, setErrBod] = useState({
         globalErr: false,
         err: false,
@@ -17,10 +21,35 @@ export default function SignInComponent() {
         password: "",
         confirmPassword: ""
     })
+
+    const [snackConfig, setSnackConfig] = useState({
+        open: false,
+        message: "",
+        severity: "info",
+        success: false
+    })
+
+    function handleClose() {
+        setSnackConfig({
+            ...snackConfig,
+            open: false,
+        });
+    }
+
+
+    function handleSnackConfig(open, message, severity, success) {
+        setSnackConfig({
+            open: open,
+            message: message,
+            severity: severity,
+            success: success
+        })
+    }
+
     const [showPass, setShowPass] = useState(false)
 
     async function validateData() {
-        if (dataObj.firstName === "" || dataObj.lastName === "" || dataObj.email === "" || dataObj.password === "" || dataObj.confirmPassword === "") {
+        if (dataObj.email === "" || dataObj.password === "") {
             setErrBod({
                 globalErr: true,
                 err: true,
@@ -34,14 +63,6 @@ export default function SignInComponent() {
                 errMsg: ""
             })
 
-        }
-
-        if (dataObj.password !== dataObj.confirmPassword) {
-            setErrBod({
-                err: true,
-                errMsg: "Passwords do not match"
-            })
-            return false
         }
         if (dataObj.password.length < 8) {
             setErrBod({
@@ -58,12 +79,18 @@ export default function SignInComponent() {
     }
 
     async function handleSubmit() {
+        let subRes;
         if (await validateData()) {
-            console.log(dataObj)
+            subRes = await userLogin(dataObj.email, dataObj.password)
+            if (subRes.success) {
+                handleSnackConfig(true, subRes.message, "success", true)
+                router.push("/")
+            } else {
+                handleSnackConfig(true, subRes.message, "error", false)
+            }
+        } else {
+            return
         }
-
-        window.alert("Signup")
-
     }
 
     return (
@@ -137,10 +164,22 @@ export default function SignInComponent() {
                     Cancel
                 </Button>
                 <Button variant="contained" onClick={handleSubmit}>
-                    Signup
+                    Sign In
                 </Button>
-
             </Box>
+            <Snackbar
+                open={snackConfig.open}
+                onClose={handleClose}
+                key={"Reg-Snack"}
+                autoHideDuration={1200}
+            >
+                <Alert
+                    onClose={handleClose}
+                    severity={snackConfig.success ? "success" : "error"}
+                >
+                    {snackConfig.message}
+                </Alert>
+            </Snackbar>
         </Paper>
 
     )

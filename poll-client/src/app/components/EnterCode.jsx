@@ -20,7 +20,7 @@ export default function EnterDetailsComponent() {
         setIsLoading(true)
         //fetch from localhost:8000 and save information to localstorage
         try {
-            const res = await fetch("http://127.0.0.1:8000/api/v1/events/join-event/" + data.eventCode, {
+            const res = await fetch("http://192.168.25.181:8000/api/v1/events/join-event/" + data.eventCode, {
                 method: "POST",
                 headers: {
                     "Content-Type": "application/json"

@@ -8,6 +8,18 @@ import AutoGraphIcon from '@mui/icons-material/AutoGraph';
 import TrendingUpIcon from '@mui/icons-material/TrendingUp';
 import SettingsIcon from '@mui/icons-material/Settings';
 
+/**
+ * The NavbarComponent serves as the official navbar entry point.
+ * It renders the navbar section which shows the navbar that is currently active.
+ * It also allows a user to navigate to different sections of the application.
+ * 
+ * @component
+ * @param {Object} props The props of the NavbarComponent
+ * @param {ReactNode} props.children The children of the NavbarComponent
+ * @param {string} props.itemTitle The title of the item
+ * @returns {JSX.Element} The rendered NavbarComponent
+ */
+
 export default function NavbarComponent({ children, itemTitle }) {
 
 
@@ -112,10 +124,10 @@ export default function NavbarComponent({ children, itemTitle }) {
                     {drawer}
                 </Drawer>
             </nav>
-            <Box component="main" sx={{ p: 3 }}>
+            <Box component="main" sx={{ display: 'flex', flexDirection: 'column', flexGrow: 1, p: 3, }}>
                 <Toolbar />
                 {children}
             </Box>
-        </Box>
+        </Box >
     )
 }
