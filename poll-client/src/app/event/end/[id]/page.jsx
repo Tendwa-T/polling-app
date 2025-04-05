@@ -22,7 +22,7 @@ export default function EventEnd() {
     }, []);
 
     const fetchQuestions = async (eID) => {
-        const response = await fetch('http://localhost:8000/api/v1/results/' + eID);
+        const response = await fetch('http://192.168.25.181:8000/api/v1/results/' + eID);
         const data = await response.json();
         console.log("Data from fetchQuestions", data);
         setQuestions(data.data.questions);
@@ -30,7 +30,7 @@ export default function EventEnd() {
     }
 
     const fetchResults = async (eID) => {
-        const response = await fetch('http://localhost:8000/api/v1/results/' + eID);
+        const response = await fetch('http://192.168.25.181:8000/api/v1/results/' + eID);
         const data = await response.json();
         console.log("Data from fetchResults", data);
         setResults(data.data.results);
@@ -81,14 +81,14 @@ export default function EventEnd() {
                                 <TableBody>
                                     {questions.map((question, index) => (
                                         <TableRow
-                                            key={index}
+                                            key={index + 1}
                                             sx={{ '&:last-child td, &:last-child th': { border: 0 } }}
                                         >
                                             <TableCell component="th" scope="row" >
                                                 {question.text}
                                             </TableCell>
                                             {question.stats.options.map((option, index) => (
-                                                <TableCell id={`stat${index}`} align="center"><p>{option.option}</p><p>{option.count} votes</p></TableCell>
+                                                <TableCell id={`stat${index + 2}`} align="center"><p>{option.option}</p><p>{option.count} votes</p></TableCell>
                                             ))}
                                             <TableCell align="right">{question.stats.correctAnswer}</TableCell>
                                             <TableCell align="right">{parseFloat(question.stats.correctPercentage).toFixed(2)} %</TableCell>

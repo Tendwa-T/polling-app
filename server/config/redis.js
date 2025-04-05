@@ -1,12 +1,51 @@
 const Redis = require("ioredis");
 
-const redisPub = new Redis();
-const redisSub = new Redis();
+const redis = new Redis();
+const subscriber = new Redis();
 
-redisSub.on("connect", () => console.log("✅ Connected to Redis"));
-redisPub.on("error", (err) => console.log("❌ Redis Pub error", err));
-redisSub.on("error", (err) => console.log("❌ Redis Sub Error", err));
+const redisPub = (channel, message) => {
+  redis.publish(channel, JSON.stringify(message), (err, res) => {
+    if (err) {
+      console.error("Error publishing message:", err);
+    } else {
+      console.log(`Message published to ${channel}:`, message);
+    }
+  });
+};
 
-redisSub.subscribe("live-events");
+const redisSub = (channel, callback) => {
+  subscriber.subscribe(channel, (err, count) => {
+    if (err) {
+      console.error("Error subscribing to channel:", err);
+    } else {
+      console.log(`Subscribed to channel ${channel}.`);
+    }
+  });
 
-module.exports = { redisPub, redisSub };
+  subscriber.on("message", (channel, message) => {
+    console.log(`Received message from ${channel}:`, message);
+    callback(channel, JSON.parse(message));
+  });
+};
+const redisUnsub = (channel) => {
+  subscriber.unsubscribe(channel, (err, count) => {
+    if (err) {
+      console.error("Error unsubscribing from channel:", err);
+    } else {
+      console.log(`Unsubscribed from channel ${channel}.`);
+    }
+  });
+};
+const redisQuit = () => {
+  redis.quit();
+  subscriber.quit();
+};
+console.log("Redis connection closed.");
+
+module.exports = {
+  redisPub,
+  redisSub,
+  redisUnsub,
+  redisQuit,
+};
+//

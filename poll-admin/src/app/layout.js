@@ -4,6 +4,8 @@ import "./globals.css";
 import { Lato } from "next/font/google";
 import { ThemeProvider } from "@mui/material/styles";
 import theme from "@/theme/theme";
+import { UserProvider } from "@/context/user/UserContext";
+import { AppProvider } from "@/context/app/AppContext";
 
 const roboto = Lato({
   weight: ["100", "300", "400", "700"],
@@ -21,9 +23,13 @@ export default function RootLayout({ children }) {
   return (
     <html lang="en">
       <body className={roboto.variable}>
-        <AppRouterCacheProvider>
-          <ThemeProvider theme={theme}>{children}</ThemeProvider>
-        </AppRouterCacheProvider>
+        <UserProvider>
+          <AppProvider>
+            <AppRouterCacheProvider>
+              <ThemeProvider theme={theme}>{children}</ThemeProvider>
+            </AppRouterCacheProvider>
+          </AppProvider>
+        </UserProvider>
       </body>
     </html>
   );

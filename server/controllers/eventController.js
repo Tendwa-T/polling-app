@@ -78,15 +78,17 @@ async function setActiveQuestion(req, res) {
         .json({ data: null, message: "Event not found", success: false });
 
     const resEvent = await Event.findById(eventID).populate("activeQuestion");
+    const channel = `live-event-${event.eventCode}`;
 
-    redisPub.publish(
-      "live-events",
+    redisPub(
+      channel,
       JSON.stringify({
         eventCode: event.eventCode,
         activeQuestion: resEvent.activeQuestion,
         isLastQuestion: resEvent.isLastQuestion,
       })
     );
+    console.log(`Published to ${channel}:`);
 
     return res
       .status(200)
@@ -152,17 +154,24 @@ async function resetActiveQuestion(req, res) {
 
 async function createEvent(req, res) {
   try {
-    const { name, description, adminID } = req.body;
+    const { name, description, adminID, startTime, endTime } = req.body;
     const eventCode = Math.random().toString(36).substring(2, 8).toUpperCase();
-    const endDate = new Date();
-    endDate.setDate(endDate.getDate() + 1);
+    let setStartTime = new Date();
+    let setEndTime = new Date();
+    if (!startTime) {
+      setStartTime.setDate(setStartTime.getDate());
+    }
+    if (!endTime) {
+      setEndTime.setDate(setEndTime.getDate() + 2);
+    }
 
     const newEvent = await Event.create({
       name,
       eventCode,
       adminID,
-      description,
-      endTime: endDate,
+      description: description || "",
+      startTime: startTime || setStartTime,
+      endTime: endTime || setEndTime,
     });
     if (!newEvent) {
       return res
@@ -217,8 +226,8 @@ async function endEvent(req, res) {
         .status(404)
         .json({ data: null, message: "Event not found", success: false });
     }
-    redisPub.publish(
-      "live-events",
+    redisPub(
+      `live-event-${eventID}`,
       JSON.stringify({
         eventCode: event.eventCode,
         eventEnded: true,
@@ -239,6 +248,54 @@ async function endEvent(req, res) {
   }
 }
 
+async function getEvents(req, res) {
+  try {
+    const { adminID } = req.params;
+    const events = await Event.find({ adminID });
+    if (!events) {
+      return res
+        .status(404)
+        .json({ data: null, message: "Events not found", success: false });
+    }
+    return res.status(200).json({
+      data: events,
+      message: "Events retrieved",
+      success: true,
+    });
+  } catch (err) {
+    console.log("Get Events Error:", err.message);
+    return res.status(500).json({
+      data: null,
+      message: `An error occurred: ${err.message}`,
+      success: false,
+    });
+  }
+}
+
+async function getEvent(req, res) {
+  try {
+    const { eventID } = req.params;
+    const event = await Event.findById(eventID).populate("questions");
+    if (!event) {
+      return res
+        .status(404)
+        .json({ data: null, message: "Event not found", success: false });
+    }
+    return res.status(200).json({
+      data: event,
+      message: "Event retrieved",
+      success: true,
+    });
+  } catch (err) {
+    console.log("Get Event Error:", err.message);
+    return res.status(500).json({
+      data: null,
+      message: `An error occurred: ${err.message}`,
+      success: false,
+    });
+  }
+}
+
 module.exports = {
   joinEvent,
   setActiveQuestion,
@@ -247,4 +304,6 @@ module.exports = {
   resetActiveQuestion,
   startEvent,
   endEvent,
+  getEvents,
+  getEvent,
 };

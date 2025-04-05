@@ -3,6 +3,7 @@ require("dotenv").config();
 const express = require("express");
 const cors = require("cors");
 const connectDB = require("./config/db");
+const chalk = require("chalk");
 
 const PORT = process.env.PORT || 5000;
 
@@ -25,8 +26,16 @@ app.get("/", (req, res) => {
   return res.json({ message: "API ONLINE" });
 });
 // console to the log the route that has been hit and pass on to the next middleware
+// Add Color using chalk to the various aspects being logged
 app.use((req, res, next) => {
-  console.log(`Route: ${req.url}`);
+  const method = chalk.default.blue(req.method);
+  const url = chalk.default.green(req.url);
+  const time = chalk.default.yellow(new Date().toLocaleString());
+  const ip = chalk.default.cyan(req.ip);
+  const userAgent = chalk.default.magenta(req.headers["user-agent"]);
+  const status = chalk.default.white(res.statusCode);
+
+  console.log(`[${time}] ${method} ${status} ${url} ${ip} ${userAgent}`);
   next();
 });
 app.use("/api/v1/events", eventRoute);

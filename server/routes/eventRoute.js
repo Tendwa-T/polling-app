@@ -1,14 +1,27 @@
 const express = require("express");
 const eventController = require("../controllers/eventController");
 const userController = require("../controllers/userController");
-const redis = require("../config/redis");
 const liveEventEmmitterObj = require("events");
+const { redisPub, redisSub } = require("../config/redis");
 const liveEventEmmitter = new liveEventEmmitterObj();
 const router = express.Router();
 
 router.post("/create", userController.protect, eventController.createEvent);
+
+router.get("/event/:eventID", userController.protect, eventController.getEvent);
+
+router.get(
+  "/events/:adminID",
+  userController.protect,
+  eventController.getEvents
+);
+
 router.post("/join-event/:eventID", eventController.joinEvent);
-router.post("/set-active-question/", eventController.setActiveQuestion);
+router.post(
+  "/set-active-question/",
+  userController.protect,
+  eventController.setActiveQuestion
+);
 router.get("/active-question/:eventID", eventController.getActiveQuestion);
 router.get(
   "/reset-active-question/:eventID",
@@ -28,18 +41,28 @@ router.get("/live-event/:eventID", (req, res) => {
     res.write(`data: ${JSON.stringify(data)}\n\n`);
   };
 
-  redis.redisSub.on("message", (channel, message) => {
-    if (channel === "live-events") {
-      const eventData = JSON.parse(message);
-      sendEvent(eventData);
-    }
+  //check for a message on the channel
+  redisSub(`live-event-${eventID}`, (channel, message) => {
+    console.log("Message Received");
+    const data = JSON.parse(message);
+    sendEvent(data);
   });
 
   req.on("close", () => {
-    liveEventEmmitter.removeListener("live-events", sendEvent);
+    liveEventEmmitter.removeListener(`live-event-${eventID}`, sendEvent);
   });
 });
 
-router.get("/end-event/:eventID", eventController.endEvent);
+router.get(
+  "/start-event/:eventID",
+  userController.protect,
+  eventController.startEvent
+);
+
+router.get(
+  "/end-event/:eventID",
+  userController.protect,
+  eventController.endEvent
+);
 
 module.exports = router;
