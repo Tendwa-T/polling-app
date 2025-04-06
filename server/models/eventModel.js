@@ -1,5 +1,13 @@
 const mongoose = require("mongoose");
 
+/**
+ * TODO: V2 Implementation
+ * 1. Adjust the event schema with the following fields:
+ *    - name -> Title : string
+ *    - isQuiz : boolean
+ *    - eventCode : string
+ */
+
 const eventSchema = new mongoose.Schema({
   name: {
     type: String,
