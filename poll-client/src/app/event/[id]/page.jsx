@@ -6,6 +6,7 @@ import { Box, OutlinedInput, Button, InputAdornment, Typography, CircularProgres
 import { useRouter } from "next/navigation";
 import { useEffect, useState, useRef, useLayoutEffect } from "react";
 import { EventSource } from "eventsource";
+const baseAPI = process.env.NEXT_PUBLIC_BASE_API
 
 export default function EventPage() {
     const [pageState, setPageState] = useState({
@@ -16,11 +17,13 @@ export default function EventPage() {
         activeQuestion: null,
         selectedAnswer: "",
         isLastQuestion: false,
-        isAnswerSubmitted: false
+        isAnswerSubmitted: false,
+        showResult: false,
     })
-    const { isLoading, eventOpen, eventID, userID, activeQuestion, selectedAnswer, isLastQuestion, isAnswerSubmitted } = pageState
+    const { isLoading, eventOpen, eventID, userID, activeQuestion, selectedAnswer, isLastQuestion, isAnswerSubmitted, showResult } = pageState
     const router = useRouter()
     const eventLisRef = useRef(null)
+    const resultLisRef = useRef(null)
 
     const [snackConfig, setSnackConfig] = useState({
         open: false,
@@ -33,7 +36,7 @@ export default function EventPage() {
         const event = JSON.parse(localStorage.getItem("event"))
         const user = JSON.parse(localStorage.getItem("userID"))
         const eventID = event.eventID
-        eventLisRef.current = new EventSource("http://192.168.25.181:8000/api/v1/events/live-event/" + event.eventCode)
+        eventLisRef.current = new EventSource(`${baseAPI}/api/v1/events/live-event/` + event.eventCode)
         setPageState({ ...pageState, eventID: eventID, userID: user })
     }, [])
 
@@ -80,7 +83,7 @@ export default function EventPage() {
         })
         closeConection()
         try {
-            const res = await fetch("http://192.168.25.181:8000/api/v1/responses/submit-response", {
+            const res = await fetch(`${baseAPI}/api/v1/responses/submit-response`, {
                 method: "POST",
                 headers: {
                     "Content-Type": "application/json"
@@ -105,13 +108,13 @@ export default function EventPage() {
                     isLoading: false,
                 })
                 return
-
             }
             setPageState({
                 ...pageState,
                 isAnswerSubmitted: true,
                 activeQuestion: null,
                 selectedAnswer: "",
+                showResult: true
             })
             return
         } catch (error) {
@@ -147,7 +150,7 @@ export default function EventPage() {
                 activeQuestion: null,
                 selectedAnswer: "",
             })
-            eventLisRef.current = new EventSource("http://192.168.25.181:8000/api/v1/events/live-event/" + eventID)
+            eventLisRef.current = new EventSource(`${baseAPI}/api/v1/events/live-event/` + eventID)
         }
     }
 
@@ -229,11 +232,72 @@ export default function EventPage() {
     useEffect(() => {
         if (activeQuestion === null) {
             console.log("activeQuestion is null, waiting for new question...");
-            eventLisRef.current = new EventSource("http://192.168.25.181:8000/api/v1/events/live-event/" + eventID);
+            eventLisRef.current = new EventSource(`${baseAPI}/api/v1/events/live-event/` + eventID);
             eventLisRef.current.onmessage = handleMessage;
         }
     }, [activeQuestion]); // Runs whenever activeQuestion changes
 
+    function QuestionComponent() {
+        return (
+            <Paper sx={{ display: 'flex', flexDirection: 'column', alignItems: 'start', justifyContent: 'start', p: '2em', borderRadius: '2em' }}>
+                <Typography variant="h6">
+                    {activeQuestion.text}
+                </Typography>
+                <Box sx={{ my: '1em', mx: '2em' }}>
+                    <RadioGroup
+                        aria-labelledby="Choice selector"
+                        value={selectedAnswer ? selectedAnswer : " "}
+                        onChange={(e) => setPageState({
+                            ...pageState,
+                            selectedAnswer: e.target.value,
+                        })}
+                    >
+                        <Box sx={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center' }}>
+                            {activeQuestion.choices.map((option, index) => (
+                                <FormControlLabel key={index} value={option} control={<Radio />} label={option} />
+                            ))}
+                        </Box>
+                    </RadioGroup>
+                </Box>
+                <Box sx={{ display: 'flex', my: '1em', width: '20em', justifyContent: 'space-around', }}>
+                    <Button variant="text" onClick={() => setPageState({
+                        ...pageState,
+                        selectedAnswer: "",
+                    })}>
+                        Clear
+                    </Button>
+                    <Button variant="contained" onClick={() => handleSubmitResponse()}>
+                        Submit
+                    </Button>
+                </Box>
+            </Paper>
+        )
+    }
+
+    function LoadingComponent() {
+        return (
+            <Box sx={{ display: 'flex', width: '100%', height: '70vh', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', p: '2em' }}>
+                <CircularProgress />
+                <Typography>
+                    Loading Questions... Please Wait
+                </Typography>
+            </Box>
+        )
+    }
+
+    function SnackBarComponent() {
+        return (
+            <Snackbar
+                open={snackConfig.open}
+                autoHideDuration={6000}
+                onClose={() => setSnackConfig({ ...snackConfig, open: false })}
+            >
+                <Alert severity={snackConfig.severity} onClose={() => setSnackConfig({ ...snackConfig, open: false })}>
+                    {snackConfig.message}
+                </Alert>
+            </Snackbar>
+        )
+    }
 
     return (
         <>
@@ -242,60 +306,27 @@ export default function EventPage() {
                 <Box sx={{ display: 'flex', flexDirection: 'column', width: '50%', }}>
                     {activeQuestion ?
                         <>
-                            <Paper sx={{ display: 'flex', flexDirection: 'column', alignItems: 'start', justifyContent: 'start', p: '2em', borderRadius: '2em' }}>
-                                <Typography variant="h6">
-                                    {activeQuestion.text}
-                                </Typography>
-                                <Box sx={{ my: '1em', mx: '2em' }}>
-                                    <RadioGroup
-                                        aria-labelledby="Choice selector"
-                                        value={selectedAnswer ? selectedAnswer : " "}
-                                        onChange={(e) => setPageState({
-                                            ...pageState,
-                                            selectedAnswer: e.target.value,
-                                        })}
-                                    >
-                                        <Box sx={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center' }}>
-                                            {activeQuestion.choices.map((option, index) => (
-                                                <FormControlLabel key={index} value={option} control={<Radio />} label={option} />
-                                            ))}
-                                        </Box>
-                                    </RadioGroup>
-                                </Box>
-                                <Box sx={{ display: 'flex', my: '1em', width: '20em', justifyContent: 'space-around', }}>
-                                    <Button variant="text" onClick={() => setPageState({
-                                        ...pageState,
-                                        selectedAnswer: "",
-                                    })}>
-                                        Clear
-                                    </Button>
-                                    <Button variant="contained" onClick={() => handleSubmitResponse()}>
-                                        Submit
-                                    </Button>
-                                </Box>
-                            </Paper>
+                            <QuestionComponent />
                         </>
                         :
-                        <Box sx={{ display: 'flex', width: '100%', height: '70vh', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', p: '2em' }}>
-                            <CircularProgress />
-                            <Typography>
-                                Loading Questions... Please Wait
-                            </Typography>
-                        </Box>
+                        <>
+                            {showResult ?
+                                <>
+                                    <Box>
+                                        <Typography>
+                                            SHow Result
+                                        </Typography>
+                                    </Box>
+                                </>
+                                :
+                                <>
+                                    <LoadingComponent />
+                                </>}
 
+                        </>
                     }
-
                 </Box>
-
-                <Snackbar
-                    open={snackConfig.open}
-                    autoHideDuration={6000}
-                    onClose={() => setSnackConfig({ ...snackConfig, open: false })}
-                >
-                    <Alert severity={snackConfig.severity} onClose={() => setSnackConfig({ ...snackConfig, open: false })}>
-                        {snackConfig.message}
-                    </Alert>
-                </Snackbar>
+                <SnackBarComponent />
             </Box>
         </>
     )

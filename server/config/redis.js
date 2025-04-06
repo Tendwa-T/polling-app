@@ -3,6 +3,10 @@ const Redis = require("ioredis");
 const redis = new Redis();
 const subscriber = new Redis();
 
+redis.on("connect", () => {
+  console.log("Connected to Redis server ✅");
+});
+
 const redisPub = (channel, message) => {
   redis.publish(channel, JSON.stringify(message), (err, res) => {
     if (err) {
@@ -39,8 +43,8 @@ const redisUnsub = (channel) => {
 const redisQuit = () => {
   redis.quit();
   subscriber.quit();
+  console.log("Redis connection closed ❌");
 };
-console.log("Redis connection closed.");
 
 module.exports = {
   redisPub,
