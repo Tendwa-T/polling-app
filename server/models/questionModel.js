@@ -1,5 +1,15 @@
 const mongoose = require("mongoose");
 
+/**
+ * TODO: V2 implementation
+ * 1. Adjust the question schema with the following fields:
+ *   - order: number
+ *   - active: boolean
+ *   - timer: Object ({enabled: boolean, duration:number})
+ *   - result: Object ({participantCount:number, voteCount:number})
+ *   - maxSelectableOptions: number
+ */
+
 const questionSchema = new mongoose.Schema({
   type: {
     type: String,
