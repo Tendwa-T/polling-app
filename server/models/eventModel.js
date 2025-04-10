@@ -1,6 +1,6 @@
 const mongoose = require("mongoose");
-const { v4: uuidv4 } = require("uuid");
-
+const { v7: uuidv7 } = require("uuid");
+const Counter = require("./counter");
 /**
  * TODO: V2 Implementation
  * 1. Adjust the event schema with the following fields:
@@ -59,6 +59,7 @@ const eventSchema = new mongoose.Schema({
  * @typedef {Object} EventSchemaV2
  * @property {UUID} uuid - Unique identifier for the event.
  * @property {UUID} eventUuid - Secondary unique identifier for the event.
+ * @property {string} eventCode - Unique code for the event.
  * @property {string} title - Title of the event.
  * @property {boolean} isQuiz - Indicates if the event is a quiz.
  * @property {boolean} active - Indicates if the event is currently active.
@@ -101,12 +102,16 @@ const eventSchemaV2 = new mongoose.Schema({
   uuid: {
     type: mongoose.Schema.Types.UUID,
     required: true,
-    default: uuidv4,
+    default: uuidv7,
   },
   eventUuid: {
     type: mongoose.Schema.Types.UUID,
     required: true,
-    default: uuidv4,
+    default: uuidv7,
+  },
+  eventCode: {
+    type: String,
+    required: true,
   },
   title: {
     type: String,
@@ -141,13 +146,14 @@ const eventSchemaV2 = new mongoose.Schema({
     {
       uuid: {
         type: mongoose.Schema.Types.UUID,
-        default: uuidv4,
+        required: true,
+        default: uuidv7,
       },
       eventUUID: {
         type: mongoose.Schema.Types.UUID,
         required: true,
       },
-      input_type: {
+      inputType: {
         type: String,
         enum: ["multiple_choice", "rearrange", "rating"],
         required: true,
@@ -204,7 +210,8 @@ const eventSchemaV2 = new mongoose.Schema({
         {
           uuid: {
             type: mongoose.Schema.Types.UUID,
-            default: uuidv4,
+            required: true,
+            default: uuidv7,
           },
           questionUuid: {
             type: mongoose.Schema.Types.UUID,
