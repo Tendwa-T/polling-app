@@ -1,5 +1,16 @@
 const mongoose = require("mongoose");
 
+/**
+ * TODO: V2 Implementation
+ * 1. Adjust the response schema with the following fields:
+ *   - userID: string
+ *   - eventID: ObjectID -> UUID
+ *   - questionID: ObjectID -> UUID
+ *   - answer -> options: UUID, ref: "options"
+ *   - answerCorrect: boolean
+ *   - submittedAt: Date
+ */
+
 const responseSchema = new mongoose.Schema({
   userID: { type: String, required: true },
   eventID: {

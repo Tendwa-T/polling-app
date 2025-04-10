@@ -3,6 +3,7 @@ const Redis = require("ioredis");
 const redis = new Redis();
 const subscriber = new Redis();
 
+// Checks connection state
 redis.on("connect", () => {
   console.log("Connected to Redis server ✅");
 });
@@ -17,6 +18,7 @@ const redisPub = (channel, message) => {
   });
 };
 
+// Create a function to subscribe to a channel and handle incoming messages
 const redisSub = (channel, callback) => {
   subscriber.subscribe(channel, (err, count) => {
     if (err) {
@@ -31,6 +33,8 @@ const redisSub = (channel, callback) => {
     callback(channel, JSON.parse(message));
   });
 };
+
+// Create a function to unsubscribe from a channel
 const redisUnsub = (channel) => {
   subscriber.unsubscribe(channel, (err, count) => {
     if (err) {
@@ -40,6 +44,8 @@ const redisUnsub = (channel) => {
     }
   });
 };
+
+// Create a function to quit the Redis connection
 const redisQuit = () => {
   redis.quit();
   subscriber.quit();
@@ -52,4 +58,3 @@ module.exports = {
   redisUnsub,
   redisQuit,
 };
-//
