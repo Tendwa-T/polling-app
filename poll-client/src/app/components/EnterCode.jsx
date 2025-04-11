@@ -3,6 +3,7 @@
 import { Box, InputAdornment, OutlinedInput, Button, Snackbar, Alert } from "@mui/material";
 import { useState } from "react";
 import { useRouter } from "next/navigation";
+const baseAPI = process.env.NEXT_PUBLIC_BASE_API
 export default function EnterDetailsComponent() {
     const [isLoading, setIsLoading] = useState(false)
     const [data, setData] = useState({
@@ -20,8 +21,8 @@ export default function EnterDetailsComponent() {
         setIsLoading(true)
         //fetch from localhost:8000 and save information to localstorage
         try {
-            const res = await fetch("http://192.168.25.181:8000/api/v1/events/join-event/" + data.eventCode, {
-                method: "POST",
+            const res = await fetch(`${baseAPI}/api/v2/events/join-event/` + data.eventCode, {
+                method: "PUT",
                 headers: {
                     "Content-Type": "application/json"
                 },
