@@ -100,12 +100,12 @@ const eventSchema = new mongoose.Schema({
 
 const eventSchemaV2 = new mongoose.Schema({
   uuid: {
-    type: mongoose.Schema.Types.UUID,
+    type: String,
     required: true,
     default: uuidv7,
   },
   eventUuid: {
-    type: mongoose.Schema.Types.UUID,
+    type: String,
     required: true,
     default: uuidv7,
   },
@@ -145,12 +145,12 @@ const eventSchemaV2 = new mongoose.Schema({
   questions: [
     {
       uuid: {
-        type: mongoose.Schema.Types.UUID,
+        type: String,
         required: true,
         default: uuidv7,
       },
-      eventUUID: {
-        type: mongoose.Schema.Types.UUID,
+      eventUuid: {
+        type: String,
         required: true,
       },
       inputType: {
@@ -209,12 +209,12 @@ const eventSchemaV2 = new mongoose.Schema({
       options: [
         {
           uuid: {
-            type: mongoose.Schema.Types.UUID,
+            type: String,
             required: true,
             default: uuidv7,
           },
           questionUuid: {
-            type: mongoose.Schema.Types.UUID,
+            type: String,
             required: true,
           },
           label: {
@@ -238,12 +238,55 @@ const eventSchemaV2 = new mongoose.Schema({
       ],
     },
   ],
+  participants: [
+    {
+      userID: {
+        type: String,
+        required: true,
+      },
+      userName: {
+        type: String,
+        required: true,
+      },
+      responses: [
+        {
+          questionUuid: {
+            type: String,
+            required: true,
+          },
+          selectedOptionUuid: {
+            type: String,
+            required: true,
+          },
+          timestamp: {
+            type: Date,
+            default: Date.now,
+          },
+        },
+      ],
+    },
+  ],
   results: {
     participantCount: {
       type: Number,
       default: 0,
     },
   },
+});
+
+//Calculate the percentage of votes for each option after saving
+eventSchemaV2.pre("save", function (next) {
+  this.questions.forEach((question) => {
+    question.options.forEach((option) => {
+      if (question.result.voteCount > 0) {
+        option.votePercentage =
+          (option.voteCount / question.result.voteCount) * 100;
+      } else {
+        option.votePercentage = 0;
+      }
+    });
+  });
+  next();
 });
 
 module.exports = mongoose.model("Event", eventSchema);
