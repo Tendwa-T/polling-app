@@ -488,6 +488,7 @@ async function setActiveQuestionV2(req, res) {
     redisPub(
       channel,
       JSON.stringify({
+        eventState: "question",
         eventCode: event.eventCode,
         eventUuid: event.eventUuid,
         activeQuestion: question,
@@ -519,7 +520,12 @@ async function joinEventV2(req, res) {
       .status(400)
       .json({ data: null, message: "Username is Required", success: false });
   try {
-    const eventV2 = await EventV2.findOne({ eventUuid });
+    let eventV2;
+    if (eventUuid > 6) {
+      eventV2 = await EventV2.findOne({ eventUuid });
+    } else {
+      eventV2 = await EventV2.findOne({ eventCode: eventUuid });
+    }
     if (!eventV2) {
       return res
         .status(404)
@@ -617,10 +623,10 @@ async function voteV2(req, res) {
       (r) => r.questionUuid === questionUuid
     );
     if (alreadyVoted) {
-      return res.status(400).json({
+      return res.status(200).json({
         data: null,
         message: "Already voted for this question",
-        success: false,
+        success: true,
       });
     }
 
@@ -647,8 +653,10 @@ async function voteV2(req, res) {
     redisPub(
       channel,
       JSON.stringify({
+        eventState: "result-wait",
         eventCode: event.eventCode,
         eventUuid: event.eventUuid,
+        activeQuestion: question,
         questionUuid,
         optionUuid,
         userID,
@@ -661,6 +669,122 @@ async function voteV2(req, res) {
     });
   } catch (err) {
     console.log(`Vote Error: ${err.message}`);
+    return res.status(500).json({
+      data: null,
+      message: `An Error Occurred: ${err.message}`,
+      success: false,
+    });
+  }
+}
+
+async function correctOptionV2(req, res) {
+  const { eventUuid, questionUuid, show } = req.body;
+  try {
+    // Get the question
+    const event = await EventV2.findOne({ eventUuid });
+    if (!event) {
+      return res
+        .status(404)
+        .json({ data: null, message: "Event not found", success: false });
+    }
+    const question = event.questions.find((q) => q.uuid === questionUuid);
+    if (!question) {
+      return res
+        .status(404)
+        .json({ data: null, message: "Question not found", success: false });
+    }
+    // Get the correct option
+    const correctOption = question.options.find((o) => o.isCorrect);
+    if (!correctOption) {
+      return res.status(404).json({
+        data: null,
+        message: "Correct option not found",
+        success: false,
+      });
+    }
+    // Publish the correct option to the channel
+    const channel = `live-event-${eventUuid}`;
+    if (show) {
+      redisPub(
+        channel,
+        JSON.stringify({
+          eventState: "result-show",
+          questionUuid,
+          correctOption: correctOption.uuid,
+        })
+      );
+      return res.status(200).json({
+        data: {
+          eventState: "result-show",
+          optionUuid: correctOption.uuid,
+          optionText: correctOption.label,
+        },
+        message: "API Call Success",
+        success: true,
+      });
+    }
+    redisPub(
+      channel,
+      JSON.stringify({
+        eventState: "result-wait",
+        questionUuid,
+        correctOption: correctOption.uuid,
+      })
+    );
+    return res.status(200).json({
+      data: {
+        eventState: "result-show",
+        optionUuid: correctOption.uuid,
+        optionText: correctOption.label,
+      },
+      message: "API Call Success",
+      success: true,
+    });
+  } catch (err) {
+    console.log(`Correct Option Error: ${err.message}`);
+    return res.status(500).json({
+      data: null,
+      message: `An Error Occurred: ${err.message}`,
+      success: false,
+    });
+  }
+}
+async function resetVotesV2(req, res) {
+  const { eventUuid } = req.params;
+  try {
+    const event = await EventV2.findOne({ eventUuid });
+    if (!event) {
+      return res
+        .status(404)
+        .json({ data: null, message: "Event not found", success: false });
+    }
+    event.questions.forEach((question) => {
+      question.options.forEach((option) => {
+        option.voteCount = 0;
+        option.votePercentage = 0;
+      });
+      question.result.voteCount = 0;
+    });
+    event.participants.forEach((participant) => {
+      participant.responses = [];
+    });
+    await event.save();
+    const channel = `live-event-${eventUuid}`;
+    redisPub(
+      channel,
+      JSON.stringify({
+        eventState: "reset-votes",
+        eventCode: event.eventCode,
+        eventUuid: event.eventUuid,
+      })
+    );
+    return res.status(200).json({
+      data: null,
+      message: "Votes reset",
+      success: true,
+    });
+  } catch (err) {
+    console.log(`Reset Votes Error: ${err.message}`);
     return res.status(500).json({
       data: null,
       message: `An Error Occurred: ${err.message}`,
@@ -691,4 +815,6 @@ module.exports = {
   endEventV2,
   joinEventV2,
   voteV2,
+  correctOptionV2,
+  resetVotesV2,
 };

@@ -7,6 +7,8 @@ const {
   setActiveQuestionV2,
   joinEventV2,
   voteV2,
+  correctOptionV2,
+  resetVotesV2,
 } = require("../../controllers/eventController");
 const { redisSub } = require("../../config/redis");
 const liveEventEmmitterObj = require("events");
@@ -21,6 +23,9 @@ router.get("/event/:eventUuid", getEventV2);
 router.put("/update/question", addQuestionToEvent);
 router.put("/set-active-question", setActiveQuestionV2);
 router.put("/join-event/:eventUuid", joinEventV2);
+
+router.post("/event/reveal", correctOptionV2);
+router.get("/event/reset/:eventUuid", resetVotesV2);
 
 router.post("/vote", voteV2);
 

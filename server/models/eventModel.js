@@ -1,6 +1,7 @@
 const mongoose = require("mongoose");
 const { v7: uuidv7 } = require("uuid");
 const Counter = require("./counter");
+const { redisPub } = require("../config/redis");
 /**
  * TODO: V2 Implementation
  * 1. Adjust the event schema with the following fields:
@@ -286,6 +287,15 @@ eventSchemaV2.pre("save", function (next) {
       }
     });
   });
+  // Publish the data to the Redis channel
+  redisPub(
+    `live-event-${this.eventUuid}`,
+    JSON.stringify({
+      eventState: "result-update",
+      eventUuid: this.eventUuid,
+      activeQuestion: this.activeQuestion,
+    })
+  );
   next();
 });
 
