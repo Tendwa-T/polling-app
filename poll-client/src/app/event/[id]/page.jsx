@@ -2,7 +2,7 @@
 
 
 import NavbarComponent from "@/app/components/Navbar";
-import { Box, OutlinedInput, Button, InputAdornment, Typography, CircularProgress, RadioGroup, FormControlLabel, Radio, Paper, Snackbar, Alert } from "@mui/material";
+import { Box, OutlinedInput, Button, InputAdornment, Typography, CircularProgress, RadioGroup, FormControlLabel, Radio, Paper, Snackbar, Alert, LinearProgress } from "@mui/material";
 import { useRouter } from "next/navigation";
 import { useEffect, useState, useRef, useLayoutEffect } from "react";
 import { EventSource } from "eventsource";
@@ -12,15 +12,20 @@ export default function EventPage() {
     const [pageState, setPageState] = useState({
         isLoading: false,
         eventOpen: true,
-        eventID: "",
+        eventUuid: "",
         userID: "",
         activeQuestion: null,
         selectedAnswer: "",
         isLastQuestion: false,
         isAnswerSubmitted: false,
         showResult: false,
+        showLobby: false,
+        showLeaderBoard: false,
+        eventState: "",
+        eventEnded: false,
+        qData: {},
     })
-    const { isLoading, eventOpen, eventID, userID, activeQuestion, selectedAnswer, isLastQuestion, isAnswerSubmitted, showResult } = pageState
+    const { eventUuid, activeQuestion, selectedAnswer, qData, showResult, showLobby, showLeaderBoard } = pageState
     const router = useRouter()
     const eventLisRef = useRef(null)
     const resultLisRef = useRef(null)
@@ -35,19 +40,19 @@ export default function EventPage() {
     useEffect(() => {
         const event = JSON.parse(localStorage.getItem("event"))
         const user = JSON.parse(localStorage.getItem("userID"))
-        const eventID = event.eventID
-        eventLisRef.current = new EventSource(`${baseAPI}/api/v1/events/live-event/` + event.eventCode)
-        setPageState({ ...pageState, eventID: eventID, userID: user })
+        const eventUuid = event.eventUuid
+        eventLisRef.current = new EventSource(`${baseAPI}/api/v2/events/live-event/` + event.eventUuid)
+        setPageState({ ...pageState, eventUuid: eventUuid, userID: user })
     }, [])
 
     useLayoutEffect(() => {
         const event = JSON.parse(localStorage.getItem("event"))
         const user = JSON.parse(localStorage.getItem("userID"))
-        const eventID = event.eventID
+        const eventUuid = event.eventUuid
         console.log("From use Effect Layout State")
-        console.log("Event ID:", eventID)
+        console.log("Event ID:", eventUuid)
         console.log("User ID:", user)
-        setPageState({ ...pageState, eventID: eventID, userID: user })
+        setPageState({ ...pageState, eventUuid: eventUuid, userID: user })
     }, [])
     function closeConection() {
         if (eventLisRef.current) {
@@ -59,12 +64,12 @@ export default function EventPage() {
     function getPageState() {
         const event = JSON.parse(localStorage.getItem("event"))
         const user = JSON.parse(localStorage.getItem("userID"))
-        const eventID = event.eventID
+        const eventUuid = event.eventUuid
         console.log("From Get Page State")
-        console.log("Event ID:", eventID)
+        console.log("Event ID:", eventUuid)
         console.log("User ID:", user)
-        setPageState({ ...pageState, eventID: eventID, userID: user })
-        return { eventID, user }
+        setPageState({ ...pageState, eventUuid: eventUuid, userID: user })
+        return { eventUuid, user }
     }
 
     async function handleSubmitResponse() {
@@ -83,16 +88,16 @@ export default function EventPage() {
         })
         closeConection()
         try {
-            const res = await fetch(`${baseAPI}/api/v1/responses/submit-response`, {
+            const res = await fetch(`${baseAPI}/api/v2/events/vote`, {
                 method: "POST",
                 headers: {
                     "Content-Type": "application/json"
                 },
                 body: JSON.stringify({
                     userID: pg.user,
-                    eventID: pg.eventID,
-                    questionID: activeQuestion._id,
-                    answer: selectedAnswer
+                    eventUuid: pg.eventUuid,
+                    questionUuid: activeQuestion.uuid,
+                    optionUuid: selectedAnswer
                 })
             })
             const data = await res.json()
@@ -112,9 +117,8 @@ export default function EventPage() {
             setPageState({
                 ...pageState,
                 isAnswerSubmitted: true,
-                activeQuestion: null,
                 selectedAnswer: "",
-                showResult: true
+                showLobby: true,
             })
             return
         } catch (error) {
@@ -127,7 +131,6 @@ export default function EventPage() {
             setPageState({
                 ...pageState,
                 isLoading: false,
-                activeQuestion: null,
                 selectedAnswer: "",
             })
             closeConection()
@@ -136,21 +139,11 @@ export default function EventPage() {
                     ...pageState,
                     isLoading: false,
                     isAnswerSubmitted: false,
-                    activeQuestion: null,
                     selectedAnswer: "",
                 })
-                router.push("/event/" + eventID)
+                router.push("/event/" + eventUuid)
             }, 400)
             return
-        } finally {
-            setPageState({
-                ...pageState,
-                isLoading: false,
-                isAnswerSubmitted: true,
-                activeQuestion: null,
-                selectedAnswer: "",
-            })
-            eventLisRef.current = new EventSource(`${baseAPI}/api/v1/events/live-event/` + eventID)
         }
     }
 
@@ -190,11 +183,48 @@ export default function EventPage() {
                 if (!prevState.activeQuestion || prevState.activeQuestion._id !== eventData.activeQuestion._id) {
                     return {
                         ...prevState,
+                        eventState: eventData.eventState,
                         activeQuestion: eventData.activeQuestion,
                         isAnswerSubmitted: false,
                         isLastQuestion: eventData.isLastQuestion || false,
                         isLoading: false
+
                     };
+                }
+                if (eventData.eventState === "result-wait") {
+                    return {
+                        ...prevState,
+                        eventState: eventData.eventState,
+                        showResult: false,
+                        showLobby: true,
+                        isLoading: false,
+                        activeQuestion: eventData.activeQuestion,
+                        qData: {
+                            questionUuid: eventData.questionUuid,
+                            correctOption: eventData.correctOption,
+                        }
+                    }
+                }
+                if (eventData.eventState === "result-show") {
+                    return {
+                        ...prevState,
+                        eventState: eventData.eventState,
+                        showResult: true,
+                        showLobby: true,
+                        isLoading: false,
+                        activeQuestion: eventData.activeQuestion,
+                        qData: {
+                            questionUuid: eventData.questionUuid,
+                            correctOption: eventData.correctOption,
+                        }
+                    }
+                }
+                if (eventData.eventState === "result-update") {
+                    return {
+                        ...prevState,
+                        eventState: eventData.eventState,
+                        activeQuestion: eventData.activeQuestion,
+                    }
                 }
                 return prevState;
             });
@@ -232,7 +262,7 @@ export default function EventPage() {
     useEffect(() => {
         if (activeQuestion === null) {
             console.log("activeQuestion is null, waiting for new question...");
-            eventLisRef.current = new EventSource(`${baseAPI}/api/v1/events/live-event/` + eventID);
+            eventLisRef.current = new EventSource(`${baseAPI}/api/v2/events/live-event/` + eventUuid);
             eventLisRef.current.onmessage = handleMessage;
         }
     }, [activeQuestion]); // Runs whenever activeQuestion changes
@@ -241,9 +271,9 @@ export default function EventPage() {
         return (
             <Paper sx={{ display: 'flex', flexDirection: 'column', alignItems: 'start', justifyContent: 'start', p: '2em', borderRadius: '2em' }}>
                 <Typography variant="h6">
-                    {activeQuestion.text}
+                    {activeQuestion.title}
                 </Typography>
-                <Box sx={{ my: '1em', mx: '2em' }}>
+                <Box sx={{ display: 'flex', flexDirection: 'column', alignItems: 'start', justifyContent: 'start', my: '1em' }}>
                     <RadioGroup
                         aria-labelledby="Choice selector"
                         value={selectedAnswer ? selectedAnswer : " "}
@@ -253,8 +283,8 @@ export default function EventPage() {
                         })}
                     >
                         <Box sx={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center' }}>
-                            {activeQuestion.choices.map((option, index) => (
-                                <FormControlLabel key={index} value={option} control={<Radio />} label={option} />
+                            {activeQuestion.options.map((option) => (
+                                <FormControlLabel key={option.uuid} value={option.uuid} control={<Radio />} label={option.label} />
                             ))}
                         </Box>
                     </RadioGroup>
@@ -299,29 +329,86 @@ export default function EventPage() {
         )
     }
 
+    function LobbyComponent() {
+        return (
+            <>
+                <Box sx={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', p: '2em' }}>
+                    {showResult ?
+                        <>
+                            <Typography>
+                                Lobby with Result Shown
+                            </Typography>
+                        </>
+                        :
+                        <>
+                            <Paper sx={{ display: 'flex', width: "60vw", flexDirection: 'column', alignItems: 'start', justifyContent: 'start', p: '1em', borderRadius: '2em' }}>
+                                <Typography variant="h6">
+                                    {activeQuestion.title}
+                                </Typography>
+                                <Box sx={{ width: '100%' }}>
+                                    {activeQuestion.options.map((option) => (
+                                        <Box key={option.uuid} sx={{ display: 'flex', flexDirection: 'column', alignItems: 'start', justifyContent: 'center', my: '1em' }}>
+                                            <Typography variant="body1" sx={{ my: '0.5em' }}>
+                                                {option.label}
+                                            </Typography>
+                                            <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', width: '100%' }}>
+                                                <LinearProgress variant="determinate" value={option.votePercentage} sx={{ width: '50vw', height: '1em', borderRadius: '1em', }} />
+                                                <Typography variant="caption" sx={{ display: 'flex', color: 'grey' }}>
+                                                    {option.votePercentage} %
+                                                </Typography>
+                                            </Box>
+                                        </Box>
+
+                                    ))}
+                                </Box>
+                            </Paper>
+                        </>}
+                </Box>
+            </>
+
+        )
+    }
+
+    function LeaderBoardComponent() {
+        return (
+            <Box sx={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', p: '2em' }}>
+                <Typography>
+                    This is the Leaderboard
+                </Typography>
+            </Box>
+        )
+    }
     return (
         <>
             <NavbarComponent />
             <Box sx={{ display: 'flex', flexDirection: 'column', p: '1em', justifyContent: 'center', alignItems: 'center' }}>
                 <Box sx={{ display: 'flex', flexDirection: 'column', width: '50%', }}>
-                    {activeQuestion ?
+                    {activeQuestion && pageState.eventState === "question" ?
                         <>
                             <QuestionComponent />
                         </>
                         :
                         <>
-                            {showResult ?
+                            {showLobby &&
                                 <>
-                                    <Box>
-                                        <Typography>
-                                            SHow Result
-                                        </Typography>
-                                    </Box>
+                                    <LobbyComponent />
                                 </>
-                                :
+                            }
+                            {showLeaderBoard &&
+                                <>
+                                    <LeaderBoardComponent />
+                                </>
+                            }
+                            {!activeQuestion && !showLobby && !showLeaderBoard &&
                                 <>
                                     <LoadingComponent />
-                                </>}
+                                </>
+                            }
+                            {pageState.isLoading &&
+                                <>
+                                    <LoadingComponent />
+                                </>
+                            }
 
                         </>
                     }

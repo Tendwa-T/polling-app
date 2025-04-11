@@ -1,6 +1,7 @@
 const mongoose = require("mongoose");
-const { v4: uuidv4 } = require("uuid");
-
+const { v7: uuidv7 } = require("uuid");
+const Counter = require("./counter");
+const { redisPub } = require("../config/redis");
 /**
  * TODO: V2 Implementation
  * 1. Adjust the event schema with the following fields:
@@ -59,6 +60,7 @@ const eventSchema = new mongoose.Schema({
  * @typedef {Object} EventSchemaV2
  * @property {UUID} uuid - Unique identifier for the event.
  * @property {UUID} eventUuid - Secondary unique identifier for the event.
+ * @property {string} eventCode - Unique code for the event.
  * @property {string} title - Title of the event.
  * @property {boolean} isQuiz - Indicates if the event is a quiz.
  * @property {boolean} active - Indicates if the event is currently active.
@@ -99,14 +101,18 @@ const eventSchema = new mongoose.Schema({
 
 const eventSchemaV2 = new mongoose.Schema({
   uuid: {
-    type: mongoose.Schema.Types.UUID,
+    type: String,
     required: true,
-    default: uuidv4,
+    default: uuidv7,
   },
   eventUuid: {
-    type: mongoose.Schema.Types.UUID,
+    type: String,
     required: true,
-    default: uuidv4,
+    default: uuidv7,
+  },
+  eventCode: {
+    type: String,
+    required: true,
   },
   title: {
     type: String,
@@ -140,14 +146,15 @@ const eventSchemaV2 = new mongoose.Schema({
   questions: [
     {
       uuid: {
-        type: mongoose.Schema.Types.UUID,
-        default: uuidv4,
+        type: String,
+        required: true,
+        default: uuidv7,
       },
-      eventUUID: {
-        type: mongoose.Schema.Types.UUID,
+      eventUuid: {
+        type: String,
         required: true,
       },
-      input_type: {
+      inputType: {
         type: String,
         enum: ["multiple_choice", "rearrange", "rating"],
         required: true,
@@ -203,11 +210,12 @@ const eventSchemaV2 = new mongoose.Schema({
       options: [
         {
           uuid: {
-            type: mongoose.Schema.Types.UUID,
-            default: uuidv4,
+            type: String,
+            required: true,
+            default: uuidv7,
           },
           questionUuid: {
-            type: mongoose.Schema.Types.UUID,
+            type: String,
             required: true,
           },
           label: {
@@ -231,12 +239,64 @@ const eventSchemaV2 = new mongoose.Schema({
       ],
     },
   ],
+  participants: [
+    {
+      userID: {
+        type: String,
+        required: true,
+      },
+      userName: {
+        type: String,
+        required: true,
+      },
+      responses: [
+        {
+          questionUuid: {
+            type: String,
+            required: true,
+          },
+          selectedOptionUuid: {
+            type: String,
+            required: true,
+          },
+          timestamp: {
+            type: Date,
+            default: Date.now,
+          },
+        },
+      ],
+    },
+  ],
   results: {
     participantCount: {
       type: Number,
       default: 0,
     },
   },
+});
+
+//Calculate the percentage of votes for each option after saving
+eventSchemaV2.pre("save", function (next) {
+  this.questions.forEach((question) => {
+    question.options.forEach((option) => {
+      if (question.result.voteCount > 0) {
+        option.votePercentage =
+          (option.voteCount / question.result.voteCount) * 100;
+      } else {
+        option.votePercentage = 0;
+      }
+    });
+  });
+  // Publish the data to the Redis channel
+  redisPub(
+    `live-event-${this.eventUuid}`,
+    JSON.stringify({
+      eventState: "result-update",
+      eventUuid: this.eventUuid,
+      activeQuestion: this.activeQuestion,
+    })
+  );
+  next();
 });
 
 module.exports = mongoose.model("Event", eventSchema);

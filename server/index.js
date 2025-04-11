@@ -9,12 +9,15 @@ const PORT = process.env.PORT || 5000;
 
 const app = express();
 
-//Routes
+//Routes v1
 const eventRoute = require("./routes/eventRoute");
 const responseRoute = require("./routes/responseRoute");
 const resultRoute = require("./routes/resultRoute");
 const questionRoute = require("./routes/questionRoute");
 const userRouter = require("./routes/userRoute");
+
+//Routes v2
+const eventRouteV2 = require("./routes/v2/eventRoute");
 
 app.use(cors());
 app.use(express.json());
@@ -43,6 +46,8 @@ app.use("/api/v1/responses", responseRoute);
 app.use("/api/v1/results", resultRoute);
 app.use("/api/v1/questions", questionRoute);
 app.use("/api/v1/users", userRouter);
+
+app.use("/api/v2/events", eventRouteV2);
 
 app.listen(PORT, () => {
   console.log(`Server is listening on PORT: ${PORT}`);
